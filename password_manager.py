@@ -4,7 +4,11 @@ import Cryptodome
 import string
 from Crypto.Random import get_random_bytes
 from Crypto.Random.random import sample
-from Crypto.Hash import SHA3_512
+from Crypto.Hash import SHA3_512, SHA512
+from Crypto.Cipher import AES
+from Crypto.Protocol.KDF import PBKDF2
+
+master_key = ''
 
 
 def create_master_pw():
@@ -13,8 +17,8 @@ def create_master_pw():
     print(master_pw.encode())
 
     # Use a salted hash to store password
-    # Salt is an 8 character long alphanumeric string
-    salt = "".join(sample(string.ascii_lowercase + string.ascii_uppercase + string.digits, 8))
+    # Salt is an 16 character long alphanumeric string
+    salt = "".join(sample(string.ascii_lowercase + string.ascii_uppercase + string.digits, 16))
     salted_pass = master_pw + salt
     print(salted_pass.encode())
     h_obj = SHA3_512.new()
@@ -26,6 +30,10 @@ def create_master_pw():
     f.write(h_obj.hexdigest() + '\n')
     f.write(salt)
     f.close()
+
+    # Store password as key for retrieving and adding passwords
+    global master_key
+    master_key = create_master_key(master_pw, salt)
     print("New master password created!\n")
 
 
@@ -47,14 +55,43 @@ def verify_master_pw():
         h_obj = SHA3_512.new()
         h_obj.update(salted_input_pass.encode())
         print(h_obj.hexdigest())
+
         if (h_obj.hexdigest() == salted_hash):
             print("Access granted!")
+            # Store password as key for retrieving and adding passwords
+            global master_key
+            master_key = create_master_key(input_master_pw, salt)
+            print("master key ", master_key)
         else:
             print("Access denied!")
 
 
+def create_master_key(master_pw, salt):
+    # Use PBKDF2 to create the master key used for retrieving and adding passwords
+    keys = PBKDF2(master_pw, salt.encode(), 32, count=1000000, hmac_hash_module=SHA512)
+    key1 = keys[:32]
+    return key1
+
+
 def add_pw():
-    pass
+    # Get site/app name for the password. Get login (username and password) also.
+    app_name    = input("Enter the website or app the password is for: ")
+    user_name   = input("Enter the username used for this website or app: ")
+    app_pw      = input("Enter the password for this website or app: ")
+    entries = [app_name, user_name, app_pw]
+
+    # Use entered password as key for encrypting
+    # print("master key in add pw ", master_key)
+    cipher = AES.new(master_key, AES.MODE_EAX)
+
+    # Prepend nonce on encrypted message. Each entry has a different nonce.
+    for entry in entries:
+        nonce = get_random_bytes(16)
+        cipher.nonce = nonce
+        ciphertext = cipher.encrypt(entry.encode())
+        print("ciphertext: ", ciphertext)
+        print("nonce: ", cipher.nonce)
+        # TO DO: Write to file
 
 
 def retrieve_pw():
