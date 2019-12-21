@@ -76,26 +76,45 @@ def create_master_key(master_pw, salt):
 def add_pw():
     # Get site/app name for the password. Get login (username and password) also.
     app_name    = input("Enter the website or app the password is for: ")
+
+    # Open a file. If it exists already, ask if user wants to overwrite the existing password
+    if path.exists(str(app_name) + ".txt"):
+        overwrite = input("Password for " + str(app_name) + " exists. Do you wish to overwrite data? (Y/N) ")
+        if overwrite.upper() == "Y":
+            f = open(str(app_name) + ".txt", "wb")
+    else:
+        f = open(str(app_name) + ".txt", "wb")
+
+    # Get credentials
     user_name   = input("Enter the username used for this website or app: ")
     app_pw      = input("Enter the password for this website or app: ")
-    entries = [app_name, user_name, app_pw]
+    entries = [user_name, app_pw]
 
     # Use entered password as key for encrypting
     # print("master key in add pw ", master_key)
     cipher = AES.new(master_key, AES.MODE_EAX)
 
-    # Prepend nonce on encrypted message. Each entry has a different nonce.
+    # Add nonce on encrypted message. Each entry has a different nonce.
     for entry in entries:
         nonce = get_random_bytes(16)
         cipher.nonce = nonce
         ciphertext = cipher.encrypt(entry.encode())
         print("ciphertext: ", ciphertext)
         print("nonce: ", cipher.nonce)
-        # TO DO: Write to file
+        # Write to file. 4 Entries: app username, its nonce, app password, its nonce
+        f.write(ciphertext + b"\n")
+        f.write(nonce + b"\n")
+    f.close()
+    print("New login credentials for " + app_name + " added!")
 
 
 def retrieve_pw():
-    pass
+    # Get app or website name the user wants to retrieve credentials from
+    app_name = input("Which website or app do you wish to retrieve credentials from: ")
+    if path.exists(str(app_name) + ".txt"):
+        print(app_name + " credentials found!")
+    else: 
+        print(app_name + " does not exist!")
 
 
 def delete_pw():
