@@ -113,6 +113,28 @@ def retrieve_pw():
     app_name = input("Which website or app do you wish to retrieve credentials from: ")
     if path.exists(str(app_name) + ".txt"):
         print(app_name + " credentials found!")
+
+        # Print app name, user name, and password
+        # Decrypt from text file: Gather text from text file and decrypt in order 
+        # [user name, user name nonce, password, password nonce]
+        f = open(str(app_name) + ".txt")
+        cipher_content = f.readlines()
+        bytes_cipher_content = []
+        for line in cipher_content:
+            bytes_line = line.strip("\n").encode()
+            print(bytes_line)
+            bytes_cipher_content.append(bytes_line)
+        print(bytes_cipher_content)
+
+        decipher = AES.new(master_key, AES.MODE_EAX, bytes_cipher_content[1])
+        plain_username = decipher.decrypt(bytes_cipher_content[0])
+        decipher.nonce = bytes_cipher_content[3]
+        plain_password = decipher.decrypt(bytes_cipher_content[2])
+
+        print("plain username: ", plain_username.decode())
+        print("plain password: ", plain_password)
+
+        f.close()
     else: 
         print(app_name + " does not exist!")
 
