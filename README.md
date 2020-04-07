@@ -8,6 +8,7 @@ Currently, PassMan can do the following (through the Python terminal):
 * Encrypt credentials using AES-128
 * Retrieve credentials
 * Delete credentials from storage
+* Change master password
 
 ### To-Do (in no particular order)
 * Create a user interface

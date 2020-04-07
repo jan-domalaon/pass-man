@@ -1,7 +1,7 @@
 import os.path
 from os import path
-import Cryptodome
 import string
+import Cryptodome
 from Crypto.Random import get_random_bytes
 from Crypto.Random.random import sample
 from Crypto.Hash import SHA3_512, SHA512
@@ -39,14 +39,16 @@ def create_master_pw():
 
 def verify_master_pw():
     # Retrieve master password salted hash and salt
-    f = open("master.txt", "r")
-    salted_hash = f.readline()[:-1]
-    salt = f.readline()
+    salted_hash_data = retrieve_salted_hash("master.txt")
+    salted_hash = salted_hash_data[0]
+    salt = salted_hash_data[1]
+
     print(salted_hash)
     print(salt)
-    f.close()
 
     # Check if entered password matches the salted hash
+    # Ask for master password from user and compare hash from inputted pw
+    # and retrieved from master.txt
     h_obj = SHA3_512.new()
     while (h_obj.hexdigest() != salted_hash):
         input_master_pw = input("Enter master password: ")
@@ -64,6 +66,16 @@ def verify_master_pw():
             print("master key ", master_key)
         else:
             print("Access denied!")
+
+
+def retrieve_salted_hash(master_pw_file):
+    # HELPER FUNCTION for verify_master_pw()
+    # Retrieve the salted hash and the corresponding salt
+    f = open(master_pw_file, "r")
+    salted_hash = f.readline()[:-1]
+    salt = f.readline()
+    f.close()   
+    return [salted_hash, salt]
 
 
 def create_master_key(master_pw, salt):
@@ -164,7 +176,7 @@ def main():
     "|  ___/ _` / __/ __| | |\/| |/ _` | '_ \ \n"
     "| |  | (_| \__ \__ \ | |  | | (_| | | | |\n"
     "|_|   \__,_|___/___/ |_|  |_|\__,_|_| |_|\n")
-    print("By Jan Domalaon, 2019\n")
+    print("By Jan Domalaon, 2020\n")
 
     print("Welcome to PassMan. Here are the options: \n" + 
             "(1) Add a password to the manager \n" +
