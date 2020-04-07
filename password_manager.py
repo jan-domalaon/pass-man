@@ -32,6 +32,7 @@ def create_master_pw():
     f.close()
 
     # Store password as key for retrieving and adding passwords
+    # master_key is global as it will be used for future credential encryption
     global master_key
     master_key = create_master_key(master_pw, salt)
     print("New master password created!\n")
