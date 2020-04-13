@@ -1,4 +1,6 @@
 import os.path
+import json
+from base64 import b64encode, b64decode
 from os import path
 import string
 import Cryptodome
@@ -138,15 +140,16 @@ def retrieve_pw():
             print(bytes_line)
             bytes_cipher_content.append(bytes_line)
         print(bytes_cipher_content)
+        try:
+            decipher = AES.new(master_key, AES.MODE_EAX, bytes_cipher_content[1])
+            plain_username = decipher.decrypt(bytes_cipher_content[0])
+            decipher.nonce = bytes_cipher_content[3]
+            plain_password = decipher.decrypt(bytes_cipher_content[2])
 
-        decipher = AES.new(master_key, AES.MODE_EAX, bytes_cipher_content[1])
-        plain_username = decipher.decrypt(bytes_cipher_content[0])
-        decipher.nonce = bytes_cipher_content[3]
-        plain_password = decipher.decrypt(bytes_cipher_content[2])
-
-        print("plain username: ", plain_username.decode())
-        print("plain password: ", plain_password)
-
+            print("plain username: ", plain_username.decode())
+            print("plain password: ", plain_password)
+        except:
+            print("Decryption error!")
         f.close()
     else: 
         print(app_name + " does not exist!")
