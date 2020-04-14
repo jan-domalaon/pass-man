@@ -93,32 +93,42 @@ def add_pw():
     app_name    = input("Enter the website or app the password is for: ")
 
     # Open a file. If it exists already, ask if user wants to overwrite the existing password
-    if path.exists(str(app_name) + ".txt"):
+    if path.exists(str(app_name) + ".json"):
         overwrite = input("Password for " + str(app_name) + " exists. Do you wish to overwrite data? (Y/N) ")
         if overwrite.upper() == "Y":
-            f = open(str(app_name) + ".txt", "wb")
+            f = open(str(app_name) + ".json", "w")
     else:
-        f = open(str(app_name) + ".txt", "wb")
+        f = open(str(app_name) + ".json", "w")
 
     # Get credentials
     user_name   = input("Enter the username used for this website or app: ")
     app_pw      = input("Enter the password for this website or app: ")
     entries = [user_name, app_pw]
+    json_entries = ["name", "pw"]
 
     # Use entered password as key for encrypting
     # print("master key in add pw ", master_key)
-    cipher = AES.new(master_key, AES.MODE_EAX)
+    cipher = AES.new(master_key, AES.MODE_CTR)
 
+    output_json = []
     # Add nonce on encrypted message. Each entry has a different nonce.
-    for entry in entries:
-        nonce = get_random_bytes(16)
-        cipher.nonce = nonce
-        ciphertext = cipher.encrypt(entry.encode())
-        print("ciphertext: ", ciphertext)
-        print("nonce: ", cipher.nonce)
+    for i in range(0, len(json_entries)):
+        ct_bytes = cipher.encrypt(entries[i].encode())
+
         # Write to file. 4 Entries: app username, its nonce, app password, its nonce
-        f.write(ciphertext + b"\n")
-        f.write(nonce + b"\n")
+        # Decode nonce to put into text file. CTR Mode uses nonce from CPU
+        nonce = b64encode(cipher.nonce).decode('utf-8')
+        ct = b64encode(ct_bytes).decode('utf-8')
+        entry_json = { 
+            json_entries[i] : {
+                "ciphertext" : ct,
+                "nonce" : nonce
+            }
+        }
+        print(entry_json)
+        output_json.append(entry_json)
+    # Output to file
+    json.dump(output_json, f)
     f.close()
     print("New login credentials for " + app_name + " added!")
 
@@ -141,7 +151,7 @@ def retrieve_pw():
             bytes_cipher_content.append(bytes_line)
         print(bytes_cipher_content)
         try:
-            decipher = AES.new(master_key, AES.MODE_EAX, bytes_cipher_content[1])
+            decipher = AES.new(master_key, AES.MODE_CTR, bytes_cipher_content[1])
             plain_username = decipher.decrypt(bytes_cipher_content[0])
             decipher.nonce = bytes_cipher_content[3]
             plain_password = decipher.decrypt(bytes_cipher_content[2])
