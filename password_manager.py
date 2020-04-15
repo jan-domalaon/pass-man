@@ -101,65 +101,86 @@ def add_pw():
         f = open(str(app_name) + ".json", "w")
 
     # Get credentials
-    user_name   = input("Enter the username used for this website or app: ")
-    app_pw      = input("Enter the password for this website or app: ")
-    entries = [user_name, app_pw]
-    json_entries = ["name", "pw"]
+    entries = input_credentials()
+    json_entries = ["Username", "Password"]
 
-    # Use entered password as key for encrypting
-    # print("master key in add pw ", master_key)
-    cipher = AES.new(master_key, AES.MODE_CTR)
+    # Construct output json format
+    output_json = create_output_json(json_entries)
 
-    output_json = []
     # Add nonce on encrypted message. Each entry has a different nonce.
     for i in range(0, len(json_entries)):
-        ct_bytes = cipher.encrypt(entries[i].encode())
+        # Use entered password as key for encrypting
+        cipher = AES.new(master_key, AES.MODE_EAX)
+        ct_bytes, tag = cipher.encrypt_and_digest(entries[i].encode())
 
-        # Write to file. 4 Entries: app username, its nonce, app password, its nonce
-        # Decode nonce to put into text file. CTR Mode uses nonce from CPU
-        nonce = b64encode(cipher.nonce).decode('utf-8')
-        ct = b64encode(ct_bytes).decode('utf-8')
-        entry_json = { 
-            json_entries[i] : {
-                "ciphertext" : ct,
-                "nonce" : nonce
-            }
-        }
-        print(entry_json)
-        output_json.append(entry_json)
+        # Write to file. There should be the length of entries * 3
+        # Times 3 because of ciphertext, tag, and nonce
+        json_k = [ 'nonce', 'ciphertext', 'tag' ]
+        json_v = []
+        for x in [cipher.nonce, ct_bytes, tag]:
+            json_v.append(b64encode(x).decode('utf-8'))
+        entry_json = json.dumps(dict(zip(json_k, json_v)))
+        print("Entry json: ", entry_json)
+        output_json[json_entries[i]] = entry_json
     # Output to file
     json.dump(output_json, f)
+    print("output json: ", output_json)
     f.close()
     print("New login credentials for " + app_name + " added!")
+
+
+def input_credentials():
+    # HELPER FUNCTION: meant to get user input for credentials
+    # Currently, the only credentials are user name and password
+    user_name   = input("Enter the username used for this website or app: ")
+    app_pw      = input("Enter the password for this website or app: ")
+    credentials = [user_name, app_pw]
+    return credentials
+
+
+def create_output_json(entries):
+    # HELPER FUNCTION to create the output json
+    # Takes in entries to create credentials json
+    # Value meant to be populated with entry_json
+    output_json = {}
+    for entry in entries:
+        output_json[entry] = ""
+    return output_json
 
 
 def retrieve_pw():
     # Get app or website name the user wants to retrieve credentials from
     app_name = input("Which website or app do you wish to retrieve credentials from: ")
-    if path.exists(str(app_name) + ".txt"):
+
+    if path.exists(str(app_name) + ".json"):
         print(app_name + " credentials found!")
 
-        # Print app name, user name, and password
-        # Decrypt from text file: Gather text from text file and decrypt in order 
-        # [user name, user name nonce, password, password nonce]
-        f = open(str(app_name) + ".txt")
-        cipher_content = f.readlines()
-        bytes_cipher_content = []
-        for line in cipher_content:
-            bytes_line = line.strip("\n").encode()
-            print(bytes_line)
-            bytes_cipher_content.append(bytes_line)
-        print(bytes_cipher_content)
-        try:
-            decipher = AES.new(master_key, AES.MODE_CTR, bytes_cipher_content[1])
-            plain_username = decipher.decrypt(bytes_cipher_content[0])
-            decipher.nonce = bytes_cipher_content[3]
-            plain_password = decipher.decrypt(bytes_cipher_content[2])
+        with open(str(app_name) + ".json") as f:
+            encrypted_json = json.load(f)
+        
+        # Get each entry in encrypted_json and print entry value
 
-            print("plain username: ", plain_username.decode())
-            print("plain password: ", plain_password)
-        except:
-            print("Decryption error!")
+        # # Print app name, user name, and password
+        # # Decrypt from text file: Gather text from text file and decrypt in order 
+        # # [user name, user name nonce, password, password nonce]
+        # f = open(str(app_name) + ".json")
+        # cipher_content = f.readlines()
+        # bytes_cipher_content = []
+        # for line in cipher_content:
+        #     bytes_line = line.strip("\n").encode()
+        #     print(bytes_line)
+        #     bytes_cipher_content.append(bytes_line)
+        # print(bytes_cipher_content)
+        # try:
+        #     decipher = AES.new(master_key, AES.MODE_CTR, bytes_cipher_content[1])
+        #     plain_username = decipher.decrypt(bytes_cipher_content[0])
+        #     decipher.nonce = bytes_cipher_content[3]
+        #     plain_password = decipher.decrypt(bytes_cipher_content[2])
+
+        #     print("plain username: ", plain_username.decode())
+        #     print("plain password: ", plain_password)
+        # except:
+        #     print("Decryption error!")
         f.close()
     else: 
         print(app_name + " does not exist!")
