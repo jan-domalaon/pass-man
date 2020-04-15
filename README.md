@@ -5,11 +5,14 @@ A simple desktop password manager made with Python and Pycryptodome. Uses AES-12
 Currently, PassMan can do the following (through the Python terminal):
 * Create a master password
 * Store credentials (username, password, site/application)
-* Encrypt credentials using AES-128
+* Encrypt credentials using AES-128 (EAX)
 * Retrieve credentials
 * Delete credentials from storage
 * Change master password
+* Stores encrypted data in JSON files
 
 ### To-Do (in no particular order)
 * Create a user interface
-* Store credentials in JSON format
+
+### Usage
+To use the PassMan, create a master password that only you know. Then, follow the terminal prompts to store and retrieve credentials.
