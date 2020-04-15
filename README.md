@@ -13,3 +13,6 @@ Currently, PassMan can do the following (through the Python terminal):
 
 ### To-Do (in no particular order)
 * Create a user interface
+
+### Usage
+To use the PassMan, create a master password that only you know. Then, follow the terminal prompts to store and retrieve credentials.
