@@ -152,35 +152,33 @@ def retrieve_pw():
     # Get app or website name the user wants to retrieve credentials from
     app_name = input("Which website or app do you wish to retrieve credentials from: ")
 
+    # Check if app name exists. If not, then cancel operation
     if path.exists(str(app_name) + ".json"):
         print(app_name + " credentials found!")
 
+        # Load app name as dictionary
         with open(str(app_name) + ".json") as f:
             encrypted_json = json.load(f)
         
         # Get each entry in encrypted_json and print entry value
+        try:
+            for entry in encrypted_json.keys():
+                # Keys expected from an entry
+                json_k = ["nonce", "ciphertext", "tag"]
+                json_v = {}
+                # Value of each credential is stored as a string that needs to change to dict
+                entry_json = json.loads(encrypted_json[entry])
 
-        # # Print app name, user name, and password
-        # # Decrypt from text file: Gather text from text file and decrypt in order 
-        # # [user name, user name nonce, password, password nonce]
-        # f = open(str(app_name) + ".json")
-        # cipher_content = f.readlines()
-        # bytes_cipher_content = []
-        # for line in cipher_content:
-        #     bytes_line = line.strip("\n").encode()
-        #     print(bytes_line)
-        #     bytes_cipher_content.append(bytes_line)
-        # print(bytes_cipher_content)
-        # try:
-        #     decipher = AES.new(master_key, AES.MODE_CTR, bytes_cipher_content[1])
-        #     plain_username = decipher.decrypt(bytes_cipher_content[0])
-        #     decipher.nonce = bytes_cipher_content[3]
-        #     plain_password = decipher.decrypt(bytes_cipher_content[2])
+                # Populate each value of key. Stored in json_v
+                for k in json_k:
+                    json_v[k] = b64decode(entry_json[k])
 
-        #     print("plain username: ", plain_username.decode())
-        #     print("plain password: ", plain_password)
-        # except:
-        #     print("Decryption error!")
+                # Finally decipher with the given nonce, ciphertext, and tag
+                cipher = AES.new(master_key, AES.MODE_EAX, nonce=json_v['nonce'])
+                plaintext = cipher.decrypt_and_verify(json_v['ciphertext'], json_v['tag'])
+                print(entry + ": ", plaintext.decode())
+        except (ValueError, KeyError):
+            print("Error with file format")
         f.close()
     else: 
         print(app_name + " does not exist!")
