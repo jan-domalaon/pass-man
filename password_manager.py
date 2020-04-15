@@ -153,7 +153,7 @@ def retrieve_pw():
     app_name = input("Which website or app do you wish to retrieve credentials from: ")
 
     # Check if app name exists. If not, then cancel operation
-    if path.exists(str(app_name) + ".json"):
+    if path.exists(app_name + ".json"):
         print(app_name + " credentials found!")
 
         # Load app name as dictionary
@@ -185,7 +185,15 @@ def retrieve_pw():
 
 
 def delete_pw():
-    pass
+    # Get app or website name the user wants to retrieve credentials from
+    app_name = input("Which website or app do you wish to delete credentials: ")
+
+    if path.exists(app_name + ".json"):
+        # Delete the following file
+        os.remove(app_name + ".json")
+        print(app_name + " credentials entry deleted!")
+    else:
+        print(app_name + " does not exist!")
 
 
 def show_all_pws():
