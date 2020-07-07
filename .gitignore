@@ -1,3 +1,5 @@
 master.txt
 *.txt
 *.json
+credentials/
+test/
