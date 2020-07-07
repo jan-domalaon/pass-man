@@ -2,6 +2,7 @@ import os.path
 import json
 from base64 import b64encode, b64decode
 from os import path
+from os import listdir
 import string
 import Cryptodome
 from Crypto.Random import get_random_bytes
@@ -151,7 +152,11 @@ def create_output_json(entries):
 def retrieve_pw():
     # Get app or website name the user wants to retrieve credentials from
     app_name = input("Which website or app do you wish to retrieve credentials from: ")
+    print_pw(app_name)
 
+
+def print_pw(app_name):
+    # HELPER FUNCTION to retrieve password from credential files
     # Check if app name exists. If not, then cancel operation
     if path.exists(app_name + ".json"):
         print(app_name + " credentials found!")
@@ -178,10 +183,18 @@ def retrieve_pw():
                 plaintext = cipher.decrypt_and_verify(json_v['ciphertext'], json_v['tag'])
                 print(entry + ": ", plaintext.decode())
         except (ValueError, KeyError):
-            print("Error with file format")
+            output_error_in_credential_file()
         f.close()
     else: 
-        print(app_name + " does not exist!")
+        output_file_does_not_exist(app_name)
+
+
+def output_error_in_credential_file():
+    print("Error with file format")
+
+
+def output_file_does_not_exist(app_name):
+    print(app_name + " does not exist!")
 
 
 def delete_pw():
@@ -197,6 +210,7 @@ def delete_pw():
 
 
 def show_all_pws():
+    # Get all credentials in credentials/ folder
     pass
 
 
