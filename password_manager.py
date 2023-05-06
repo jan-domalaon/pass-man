@@ -12,12 +12,12 @@ from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 
 master_key = ''
+DEFAULT_MASTER_FP = 'master.txt'
 
-
-def create_master_pw():
+def create_master_pw(master_fp: str=DEFAULT_MASTER_FP):
     # Get input from user to create a new master password
     master_pw = input("No master password found. Enter a new master password: ")
-    print(master_pw.encode())
+    print('Hash: ', master_pw.encode())
 
     # Use a salted hash to store password
     # Salt is an 16 character long alphanumeric string
@@ -29,7 +29,7 @@ def create_master_pw():
     print(h_obj.hexdigest())
 
     # Write salted hash and salt on file
-    f = open("master.txt", "w")
+    f = open(master_fp, "w")
     f.write(h_obj.hexdigest() + '\n')
     f.write(salt)
     f.close()
@@ -38,12 +38,12 @@ def create_master_pw():
     # master_key is global as it will be used for future credential encryption
     global master_key
     master_key = create_master_key(master_pw, salt)
-    print("New master password created!\n")
+    print("New master password created! Hash stored in \n")
 
 
-def verify_master_pw():
+def verify_master_pw(master_fp: str=DEFAULT_MASTER_FP):
     # Retrieve master password salted hash and salt
-    salted_hash_data = retrieve_salted_hash("master.txt")
+    salted_hash_data = retrieve_salted_hash(master_fp)
     salted_hash = salted_hash_data[0]
     salt = salted_hash_data[1]
 
@@ -72,10 +72,10 @@ def verify_master_pw():
             print("Access denied!")
 
 
-def retrieve_salted_hash(master_pw_file):
+def retrieve_salted_hash(master_fp: str):
     # HELPER FUNCTION for verify_master_pw()
     # Retrieve the salted hash and the corresponding salt
-    f = open(master_pw_file, "r")
+    f = open(master_fp, "r")
     salted_hash = f.readline()[:-1]
     salt = f.readline()
     f.close()   
@@ -240,10 +240,11 @@ def display_menu():
 
 def main():
     # Create a new master password if a master password already exists
-    if path.exists("master.txt"):
+    master_fp: str = DEFAULT_MASTER_FP
+    if path.exists(master_fp):
         verify_master_pw()
     else:
-        create_master_pw()
+        create_master_pw(master_fp=DEFAULT_MASTER_FP)
     
     # Display terminal banner and menu selection
     display_banner()
