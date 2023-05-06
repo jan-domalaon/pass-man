@@ -218,6 +218,26 @@ def change_master_pw():
     pass
 
 
+def display_banner():
+    print(' ____                 __  __               ____    ___  ')
+    print('|  _ \ __ _ ___ ___  |  \/  | __ _ _ __   |___ \  / _ \ ')
+    print('| |_) / _` / __/ __| | |\/| |/ _` |  _ \    __) || | | |')
+    print('|  __/ (_| \__ \__ \ | |  | | (_| | | | |  / __/ | |_| |')
+    print('|_|   \__,_|___/___/ |_|  |_|\__,_|_| |_| |_____(_)___/ ')
+    print('                                                        ')
+    print("Homealone Specifications, 2023\n")
+
+
+def display_menu():
+    print("Welcome to PassMan 2.0! Here are your options: \n" + 
+        "(1) Add a password to the manager \n" +
+        "(2) Retrieve a password from the manager \n" +
+        "(3) Delete a password from the manager \n" + 
+        "(4) Show all passwords in the manager \n" +
+        "(5) Change master password \n" +
+        "(6) Exit \n")
+
+
 def main():
     # Create a new master password if a master password already exists
     if path.exists("master.txt"):
@@ -225,21 +245,10 @@ def main():
     else:
         create_master_pw()
     
-    print(" _____                __  __             \n"
-    "|  __ \              |  \/  |            \n"
-    "| |__) |_ _ ___ ___  | \  / | __ _ _ __  \n"
-    "|  ___/ _` / __/ __| | |\/| |/ _` | '_ \ \n"
-    "| |  | (_| \__ \__ \ | |  | | (_| | | | |\n"
-    "|_|   \__,_|___/___/ |_|  |_|\__,_|_| |_|\n")
-    print("By Jan Domalaon, 2020\n")
+    # Display terminal banner and menu selection
+    display_banner()
+    display_menu()
 
-    print("Welcome to PassMan. Here are the options: \n" + 
-            "(1) Add a password to the manager \n" +
-            "(2) Retrieve a password from the manager \n" +
-            "(3) Delete a password from the manager \n" + 
-            "(4) Show all passwords in the manager \n" +
-            "(5) Change master password \n" +
-            "(6) Exit \n")
     option = input("Enter the number of the option you wish to perform: ")
     while option != "6":
         if option == "1":
@@ -252,8 +261,12 @@ def main():
             show_all_pws()
         elif option == "5":
             change_master_pw()
+        elif option == "amogus":
+            print("amogus jumpscare!!!!")
+        elif option != "6":
+            print("Enter a valid number from the options")
         option = input("Enter the number of the option you wish to perform: ")
-    print("Exiting PassMan... Good bye :)")
+    print("Exiting PassMan 2.0... Good bye :)")
         
 
 
