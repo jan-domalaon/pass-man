@@ -1,5 +1,6 @@
 import os.path
 import json
+import time
 from base64 import b64encode, b64decode
 from os import path
 from os import listdir
@@ -12,12 +13,14 @@ from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 
 master_key = ''
-DEFAULT_MASTER_FP = 'master.txt'
+DEFAULT_MASTER_FP: str = 'master.txt'
+DEFAULT_CREDENTIALS_FOLDER_FP: str = 'credentials/'
+credentials_folder_fp: str = ''
 
 def create_master_pw(master_fp: str=DEFAULT_MASTER_FP):
     # Get input from user to create a new master password
     master_pw = input("No master password found. Enter a new master password: ")
-    print('Hash: ', master_pw.encode())
+    print('Encoded: ', master_pw.encode())
 
     # Use a salted hash to store password
     # Salt is an 16 character long alphanumeric string
@@ -26,19 +29,20 @@ def create_master_pw(master_fp: str=DEFAULT_MASTER_FP):
     print(salted_pass.encode())
     h_obj = SHA3_512.new()
     h_obj.update(salted_pass.encode())
-    print(h_obj.hexdigest())
-
+    print('Master password hash created!: ' , h_obj.hexdigest())
+    
     # Write salted hash and salt on file
     f = open(master_fp, "w")
     f.write(h_obj.hexdigest() + '\n')
     f.write(salt)
     f.close()
+    print('Master password hash stored in ', master_fp)
 
     # Store password as key for retrieving and adding passwords
     # master_key is global as it will be used for future credential encryption
     global master_key
     master_key = create_master_key(master_pw, salt)
-    print("New master password created! Hash stored in \n")
+    print("New master password created!")
 
 
 def verify_master_pw(master_fp: str=DEFAULT_MASTER_FP):
@@ -47,29 +51,28 @@ def verify_master_pw(master_fp: str=DEFAULT_MASTER_FP):
     salted_hash = salted_hash_data[0]
     salt = salted_hash_data[1]
 
-    print(salted_hash)
-    print(salt)
+    print('Master password hash: ', salted_hash)
+    print('Master password salt: ', salt)
 
     # Check if entered password matches the salted hash
-    # Ask for master password from user and compare hash from inputted pw
-    # and retrieved from master.txt
+    # Ask for master password from user
+    # Compare hash from inputted pw and retrieved hash from master_fp
     h_obj = SHA3_512.new()
     while (h_obj.hexdigest() != salted_hash):
         input_master_pw = input("Enter master password: ")
         salted_input_pass = input_master_pw + salt
-        print(salted_input_pass.encode())
+        print('Your salted input encoded: ', salted_input_pass.encode())
         h_obj = SHA3_512.new()
         h_obj.update(salted_input_pass.encode())
-        print(h_obj.hexdigest())
+        print('Your inputted salted hash: ', h_obj.hexdigest())
 
         if (h_obj.hexdigest() == salted_hash):
-            print("Access granted!")
+            print("Correct password! Access granted")
             # Store password as key for retrieving and adding passwords
             global master_key
             master_key = create_master_key(input_master_pw, salt)
-            print("master key ", master_key)
         else:
-            print("Access denied!")
+            print("Wrong password! Access denied")
 
 
 def retrieve_salted_hash(master_fp: str):
@@ -89,17 +92,21 @@ def create_master_key(master_pw, salt):
     return key1
 
 
-def add_pw():
+def add_pw(credentials_folder_fp: str=DEFAULT_CREDENTIALS_FOLDER_FP):
     # Get site/app name for the password. Get login (username and password) also.
-    app_name    = input("Enter the website or app the password is for: ")
+    app_name: str = input("Enter the website or app the password is for: ")
 
     # Open a file. If it exists already, ask if user wants to overwrite the existing password
-    if path.exists(str(app_name) + ".json"):
+    credentials_fp: str = credentials_folder_fp + app_name + '.json'
+    if path.exists(credentials_fp):
         overwrite = input("Password for " + str(app_name) + " exists. Do you wish to overwrite data? (Y/N) ")
         if overwrite.upper() == "Y":
-            f = open(str(app_name) + ".json", "w")
+            f = open(credentials_fp, "w")
+        else:
+            print('Rename app/site name inputted. Not adding any new credentials...')
+            return
     else:
-        f = open(str(app_name) + ".json", "w")
+        f = open(credentials_fp, "w")
 
     # Get credentials
     entries = input_credentials()
@@ -123,6 +130,7 @@ def add_pw():
         entry_json = json.dumps(dict(zip(json_k, json_v)))
         print("Entry json: ", entry_json)
         output_json[json_entries[i]] = entry_json
+    
     # Output to file
     json.dump(output_json, f)
     print("output json: ", output_json)
@@ -155,14 +163,15 @@ def retrieve_pw():
     print_pw(app_name)
 
 
-def print_pw(app_name):
+def print_pw(app_name: str, credentials_folder_fp: str = DEFAULT_CREDENTIALS_FOLDER_FP):
     # HELPER FUNCTION to retrieve password from credential files
     # Check if app name exists. If not, then cancel operation
-    if path.exists(app_name + ".json"):
+    credentials_fp: str = credentials_folder_fp + app_name + '.json'
+    if path.exists(credentials_fp):
         print(app_name + " credentials found!")
 
         # Load app name as dictionary
-        with open(str(app_name) + ".json") as f:
+        with open(credentials_fp) as f:
             encrypted_json = json.load(f)
         
         # Get each entry in encrypted_json and print entry value
@@ -218,24 +227,44 @@ def change_master_pw():
     pass
 
 
-def display_banner():
-    print(' ____                 __  __               ____    ___  ')
-    print('|  _ \ __ _ ___ ___  |  \/  | __ _ _ __   |___ \  / _ \ ')
-    print('| |_) / _` / __/ __| | |\/| |/ _` |  _ \    __) || | | |')
-    print('|  __/ (_| \__ \__ \ | |  | | (_| | | | |  / __/ | |_| |')
-    print('|_|   \__,_|___/___/ |_|  |_|\__,_|_| |_| |_____(_)___/ ')
-    print('                                                        ')
-    print("Homealone Specifications, 2023\n")
+def display_banner(print_cool: bool=True) -> None:
+    display_text_list: list = [
+        ' ____                 __  __               ____    ___  ',
+        '|  _ \ __ _ ___ ___  |  \/  | __ _ _ __   |___ \  / _ \ ',
+        '| |_) / _` / __/ __| | |\/| |/ _` |  _ \    __) || | | |',
+        '|  __/ (_| \__ \__ \ | |  | | (_| | | | |  / __/ | |_| |',
+        '|_|   \__,_|___/___/ |_|  |_|\__,_|_| |_| |_____(_)___/ ',
+        '                                                        ',
+        "Homealone Specifications, 2023\n"
+    ]
+
+    for line in display_text_list:
+        if print_cool:
+            display_cool(line)
+        else:
+            print(line)
 
 
-def display_menu():
-    print("Welcome to PassMan 2.0! Here are your options: \n" + 
-        "(1) Add a password to the manager \n" +
-        "(2) Retrieve a password from the manager \n" +
-        "(3) Delete a password from the manager \n" + 
-        "(4) Show all passwords in the manager \n" +
-        "(5) Change master password \n" +
-        "(6) Exit \n")
+def display_menu(print_cool: bool=True) -> None:
+    display_text_list: list = [
+        'Welcome to PassMan 2.0! Here are your options: ',
+        '(1) Add a password to the manager',
+        '(2) Retrieve a password from the manager',
+        '(3) Delete a password from the manager',
+        '(4) Show all passwords in the manager',
+        '(5) Change master password',
+        '(6) Exit'
+    ]
+
+    for line in display_text_list:
+        if print_cool:
+            display_cool(line)
+        else:
+            print(line)
+
+def display_cool(text: str) -> None:
+    print(text)
+    time.sleep(0.1)
 
 
 def main():
@@ -265,7 +294,8 @@ def main():
         elif option == "amogus":
             print("amogus jumpscare!!!!")
         elif option != "6":
-            print("Enter a valid number from the options")
+            print(option , " is not a valid option. Enter a valid number from the menu below \n \/\/\/\/\/")
+            display_menu(print_cool=False)
         option = input("Enter the number of the option you wish to perform: ")
     print("Exiting PassMan 2.0... Good bye :)")
         
