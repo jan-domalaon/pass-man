@@ -16,6 +16,7 @@ from Crypto.Protocol.KDF import PBKDF2
 master_key = ''
 DEFAULT_MASTER_FP: str = 'master.txt'
 DEFAULT_CREDENTIALS_FOLDER_FP: str = 'credentials/'
+DEFAULT_MAX_ATTEMPT: int =5
 credentials_folder_fp: str = ''
 
 def create_master_pw(master_fp: str=DEFAULT_MASTER_FP):
@@ -46,34 +47,60 @@ def create_master_pw(master_fp: str=DEFAULT_MASTER_FP):
     print("New master password created!")
 
 
-def verify_master_pw(master_fp: str=DEFAULT_MASTER_FP):
-    # Retrieve master password salted hash and salt
+def challenge_master_pw(master_fp: str=DEFAULT_MASTER_FP) -> bool:
+    # Check if entered password matches the salted hash
+    # Ask for master password from user
+    # Compare hash from inputted pw and retrieved hash from master_fp
+    # 5 attempts only. Then, program closes.
+    attempt_count: int = 0
+
+    # Print master salt and hash
+    master_salted_hash_list = retrieve_salted_hash(master_fp)
+    print('Master password hash: ', master_salted_hash_list[0])
+    print('Master password salt: ', master_salted_hash_list[1])   
+
+    while attempt_count < DEFAULT_MAX_ATTEMPT:
+        input_master_pw = input("Enter master password: ")
+        if verify_master_pw(input_master_pw):
+            print("Correct password! Access granted.")
+            return True
+        else:
+            attempt_count += 1
+            print_wrong_attempt_prompt(attempt_count)
+    display_end_program()
+    return False
+    
+
+
+def print_wrong_attempt_prompt(attempt_count: int) -> None:
+    print("Wrong password! Access denied.")
+    print("You have done ", attempt_count , " out of ", DEFAULT_MAX_ATTEMPT, " max attempts.")
+    if attempt_count == DEFAULT_MAX_ATTEMPT - 1:
+        print("This is your last attempt! The program will end if you get this wrong.")
+
+
+def verify_master_pw(pw_attempt: str, master_fp: str=DEFAULT_MASTER_FP) -> bool:
+    # HELPER FUNCTION FOR challenge_master_pw()
+    # Without the terminal print statements
     salted_hash_data = retrieve_salted_hash(master_fp)
     salted_hash = salted_hash_data[0]
     salt = salted_hash_data[1]
-
-    print('Master password hash: ', salted_hash)
-    print('Master password salt: ', salt)
 
     # Check if entered password matches the salted hash
     # Ask for master password from user
     # Compare hash from inputted pw and retrieved hash from master_fp
     h_obj = SHA3_512.new()
-    while (h_obj.hexdigest() != salted_hash):
-        input_master_pw = input("Enter master password: ")
-        salted_input_pass = input_master_pw + salt
-        print('Your salted input encoded: ', salted_input_pass.encode())
-        h_obj = SHA3_512.new()
-        h_obj.update(salted_input_pass.encode())
-        print('Your inputted salted hash: ', h_obj.hexdigest())
+    salted_input_pass = pw_attempt + salt
+    h_obj = SHA3_512.new()
+    h_obj.update(salted_input_pass.encode())
 
-        if (h_obj.hexdigest() == salted_hash):
-            print("Correct password! Access granted")
-            # Store password as key for retrieving and adding passwords
-            global master_key
-            master_key = create_master_key(input_master_pw, salt)
-        else:
-            print("Wrong password! Access denied")
+    if (h_obj.hexdigest() == salted_hash):
+        # Store password as key for retrieving and adding passwords
+        global master_key
+        master_key = create_master_key(pw_attempt, salt)
+        return True
+    else:
+        return False
 
 
 def retrieve_salted_hash(master_fp: str):
@@ -82,7 +109,7 @@ def retrieve_salted_hash(master_fp: str):
     f = open(master_fp, "r")
     salted_hash = f.readline()[:-1]
     salt = f.readline()
-    f.close()   
+    f.close()
     return [salted_hash, salt]
 
 
@@ -244,11 +271,14 @@ def get_json_filenames(file_names: list) -> list:
     return json_file_names
 
 
-def change_master_pw():
+def change_master_pw(master_fp: str=DEFAULT_MASTER_FP):
+    # Ask for master password again to do
+    master_pw_attempt = input
     pass
 
 
 def delete_master_pw(master_fp: str=DEFAULT_MASTER_FP):
+    # Delete master password file
     pass
 
 
@@ -287,16 +317,23 @@ def display_menu(print_cool: bool=True) -> None:
         else:
             print(line)
 
+
 def display_cool(text: str) -> None:
     print(text)
     time.sleep(0.1)
+
+
+def display_end_program() -> None:
+    print("Exiting PassMan 2.0... Good bye :)")
+    return
 
 
 def main():
     # Create a new master password if a master password already exists
     master_fp: str = DEFAULT_MASTER_FP
     if path.exists(master_fp):
-        verify_master_pw()
+        if not challenge_master_pw():
+            return
     else:
         create_master_pw(master_fp=DEFAULT_MASTER_FP)
     
@@ -322,7 +359,7 @@ def main():
             print(option , " is not a valid option. Enter a valid number from the menu below \n \/\/\/\/\/")
             display_menu(print_cool=False)
         option = input("Enter the number of the option you wish to perform: ")
-    print("Exiting PassMan 2.0... Good bye :)")
+    display_end_program()
         
 
 
