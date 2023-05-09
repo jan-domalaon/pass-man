@@ -12,6 +12,7 @@ from Crypto.Random.random import sample
 from Crypto.Hash import SHA3_512, SHA512
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
+from datetime import datetime
 
 master_key = ''
 DEFAULT_MASTER_FP: str = 'master.txt'
@@ -227,11 +228,11 @@ def print_pw(app_name: str, credentials_folder_fp: str = DEFAULT_CREDENTIALS_FOL
 
 
 def output_error_in_credential_file():
-    print("Error with file format")
+    print("Error with file format. Returning to menu...")
 
 
 def output_file_does_not_exist(app_name):
-    print(app_name + " does not exist!")
+    print(app_name + " does not exist! Returning to menu...")
 
 
 def delete_pw():
@@ -271,10 +272,33 @@ def get_json_filenames(file_names: list) -> list:
     return json_file_names
 
 
-def change_master_pw(master_fp: str=DEFAULT_MASTER_FP):
+def menu_change_master_pw(master_fp: str=DEFAULT_MASTER_FP) -> None:
     # Ask for master password again to do
-    master_pw_attempt = input
+    master_pw_attempt = input("As a safety precaution, enter the master password again: ")
+    if verify_master_pw(master_pw_attempt):
+        # Add precaution
+        precaution = input(
+            "Note: this will change the master key for all of your stored credentials. If you forget your new master password, you can use your old master password by choosing the old master file, stored in the backup/ folder. The backup folder will contain old credentials and master files. They will be stored in folders with the date and time they were backed up. \n Do you understand this? (Y/N): "
+            )
+        if precaution.upper() == 'Y':
+            change_master_pw(master_fp)
+        else:
+            print("Returning to menu...")
+            return
+    else:
+        print("Incorrect master password. Returning to menu...")
+        return
+
+
+def change_master_pw(master_fp: str) -> None:
+    # HELPER FUNCTION FOR menu_change_master_pw()
+    # Handles the actual master password changing
+
+    # Delete original master password
+
+    # Create a new master password file
     pass
+
 
 
 def delete_master_pw(master_fp: str=DEFAULT_MASTER_FP):
@@ -352,7 +376,7 @@ def main():
         elif option == "4":
             show_all_pws()
         elif option == "5":
-            change_master_pw()
+            menu_change_master_pw()
         elif option == "amogus":
             print("amogus jumpscare!!!!")
         elif option != "6":

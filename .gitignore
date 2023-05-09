@@ -3,3 +3,4 @@ master.txt
 *.json
 credentials/
 test/
+backup/
