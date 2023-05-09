@@ -4,6 +4,7 @@ import time
 from base64 import b64encode, b64decode
 from os import path
 from os import listdir
+from os.path import isfile, join
 import string
 import Cryptodome
 from Crypto.Random import get_random_bytes
@@ -218,12 +219,36 @@ def delete_pw():
         print(app_name + " does not exist!")
 
 
-def show_all_pws():
-    # Get all credentials in credentials/ folder
-    pass
+def show_all_pws(folder_fp: str=DEFAULT_CREDENTIALS_FOLDER_FP):
+    # Get all credentials in a credentials folder
+    creds_filenames = [f for f in listdir(folder_fp) if isfile(join(folder_fp, f))]
+    print("Files found in folder ", folder_fp)
+    print(creds_filenames)
+
+    # Get only json files. Most likely to be credential files
+    json_file_names = get_json_filenames(creds_filenames)
+
+    for file_name in json_file_names:
+        app_name = file_name[0:-5]
+        print_pw(app_name=app_name)
+
+
+def get_json_filenames(file_names: list) -> list:
+    json_file_names = []
+    for file_name in file_names:
+        try:
+            if file_name[-5:] == '.json':
+                json_file_names.append(file_name)
+        except:
+            print('File exception occurred')
+    return json_file_names
 
 
 def change_master_pw():
+    pass
+
+
+def delete_master_pw(master_fp: str=DEFAULT_MASTER_FP):
     pass
 
 
