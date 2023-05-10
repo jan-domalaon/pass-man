@@ -7,6 +7,7 @@ from os import listdir
 from os.path import isfile, join
 import string
 import Cryptodome
+import shutil
 from Crypto.Random import get_random_bytes
 from Crypto.Random.random import sample
 from Crypto.Hash import SHA3_512, SHA512
@@ -16,13 +17,14 @@ from datetime import datetime
 
 master_key = ''
 DEFAULT_MASTER_FP: str = 'master.txt'
-DEFAULT_CREDENTIALS_FOLDER_FP: str = 'credentials/'
-DEFAULT_MAX_ATTEMPT: int =5
+DEFAULT_CREDENTIALS_FOLDER_FP: str = 'credentials\\'
+DEFAULT_BACKUP_FOLDER_FP: str = 'backup\\'
+DEFAULT_MAX_ATTEMPT: int = 5
 credentials_folder_fp: str = ''
 
 def create_master_pw(master_fp: str=DEFAULT_MASTER_FP):
     # Get input from user to create a new master password
-    master_pw = input("No master password found. Enter a new master password: ")
+    master_pw = input("Enter a new master password: ")
     print('Encoded: ', master_pw.encode())
 
     # Use a salted hash to store password
@@ -247,10 +249,10 @@ def delete_pw():
         print(app_name + " does not exist!")
 
 
-def show_all_pws(folder_fp: str=DEFAULT_CREDENTIALS_FOLDER_FP):
+def show_all_pws(credentials_fp: str=DEFAULT_CREDENTIALS_FOLDER_FP):
     # Get all credentials in a credentials folder
-    creds_filenames = [f for f in listdir(folder_fp) if isfile(join(folder_fp, f))]
-    print("Files found in folder ", folder_fp)
+    creds_filenames = get_files_in_folder(credentials_fp)
+    print("Files found in folder ", credentials_fp)
     print(creds_filenames)
 
     # Get only json files. Most likely to be credential files
@@ -259,6 +261,10 @@ def show_all_pws(folder_fp: str=DEFAULT_CREDENTIALS_FOLDER_FP):
     for file_name in json_file_names:
         app_name = file_name[0:-5]
         print_pw(app_name=app_name)
+
+
+def get_files_in_folder(folder_fp: str) -> list:
+    return [f for f in listdir(folder_fp) if isfile(join(folder_fp, f))]
 
 
 def get_json_filenames(file_names: list) -> list:
@@ -272,7 +278,7 @@ def get_json_filenames(file_names: list) -> list:
     return json_file_names
 
 
-def menu_change_master_pw(master_fp: str=DEFAULT_MASTER_FP) -> None:
+def menu_change_master_pw(master_fp: str=DEFAULT_MASTER_FP, credentials_fp: str=DEFAULT_CREDENTIALS_FOLDER_FP, backup_fp: str=DEFAULT_BACKUP_FOLDER_FP) -> None:
     # Ask for master password again to do
     master_pw_attempt = input("As a safety precaution, enter the master password again: ")
     if verify_master_pw(master_pw_attempt):
@@ -281,7 +287,8 @@ def menu_change_master_pw(master_fp: str=DEFAULT_MASTER_FP) -> None:
             "Note: this will change the master key for all of your stored credentials. If you forget your new master password, you can use your old master password by choosing the old master file, stored in the backup/ folder. The backup folder will contain old credentials and master files. They will be stored in folders with the date and time they were backed up. \n Do you understand this? (Y/N): "
             )
         if precaution.upper() == 'Y':
-            change_master_pw(master_fp)
+            change_master_pw(master_fp=master_fp, credentials_fp=credentials_fp, backup_fp=backup_fp)
+            print("Successfully created new master password!")
         else:
             print("Returning to menu...")
             return
@@ -290,19 +297,71 @@ def menu_change_master_pw(master_fp: str=DEFAULT_MASTER_FP) -> None:
         return
 
 
-def change_master_pw(master_fp: str) -> None:
+def change_master_pw(master_fp: str, credentials_fp: str, backup_fp: str) -> None:
     # HELPER FUNCTION FOR menu_change_master_pw()
     # Handles the actual master password changing
 
+    # Back up original credentials in a backup/ folder
+    # Also back up the old master file
+    backup_credentials_and_master(master_fp, credentials_fp, backup_fp=backup_fp)
+
     # Delete original master password
+    delete_master_pw(master_fp)
 
     # Create a new master password file
-    pass
+    create_master_pw(master_fp)
 
+    # Decrypt and re-encrypt all old credentials using the new master password as key
+    re_encrypt_creds_to_new_master_pw()
+
+
+def backup_credentials_and_master(master_fp: str, credentials_fp: str, backup_fp: str) -> None:
+    # Create a new folder in backup/ only if backup folder doesn't exist already
+    # Probably doesn't because we use seconds in the datetime frfr
+    current_time = datetime.now().strftime('%B %d %Y %H-%M-%S')
+    new_backup_fp = backup_fp + current_time + '\\'
+    new_backup_credentials_fp = new_backup_fp + 'credentials\\'
+    if not os.path.exists(new_backup_fp):
+        # Create the parent backup folder
+        os.makedirs(new_backup_fp)
+        # Backup credentials folder structure from main folder:
+        # ./backup/datetime/credentials
+        copy_credentials_to_new_folder(credentials_fp, new_backup_credentials_fp)
+        copy_master_to_backup_date_folder(master_fp, new_backup_fp)
+        print("Backed up credentials and master file to ", new_backup_fp, " successfully!")
+        print("Copied old credential files from ", credentials_fp, ' to ', new_backup_credentials_fp)
+    else:
+        print(new_backup_fp, " exists already. Not overwriting directory.")
+
+
+def copy_credentials_to_new_folder(credentials_fp: str, new_folder_fp: str) -> None:
+    # Create new folder
+    os.makedirs(new_folder_fp)
+
+    # Copy credentials files from credentials_fp and move them to the new folder fp
+    credential_file_name_list = get_files_in_folder(credentials_fp)
+    for file_name in credential_file_name_list:
+        source_fp = credentials_fp + file_name
+        destination_fp = new_folder_fp + file_name
+        shutil.copy(source_fp, destination_fp)
+
+
+def copy_master_to_backup_date_folder(master_fp: str, backup_fp: str) -> None:
+    # Copy the master file into a backup folder
+    destination_fp = backup_fp + 'master.txt'
+    shutil.copy(master_fp, destination_fp)
 
 
 def delete_master_pw(master_fp: str=DEFAULT_MASTER_FP):
     # Delete master password file
+    try:
+        os.remove(master_fp)
+        print("Successfully removed master file: ", master_fp)
+    except:
+        print("Error: ", master_fp, " could not be deleted.")
+
+
+def re_encrypt_creds_to_new_master_pw() -> None:
     pass
 
 
@@ -359,6 +418,7 @@ def main():
         if not challenge_master_pw():
             return
     else:
+        print("No master password file found.")
         create_master_pw(master_fp=DEFAULT_MASTER_FP)
     
     # Display terminal banner and menu selection
