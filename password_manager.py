@@ -408,6 +408,13 @@ def display_cool(text: str) -> None:
 
 def display_end_program() -> None:
     print("Exiting PassMan 2.0... Good bye :)")
+    time.sleep(1)
+    print("Clearing terminal in 5 seconds for security's sake")
+    for i in range(5, 0, -1):
+        print(i)
+        time.sleep(1)
+    print('Clearing...')
+    os.system('cls||clear')
     return
 
 
