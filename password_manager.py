@@ -66,6 +66,7 @@ def challenge_master_pw(master_fp: str=DEFAULT_MASTER_FP) -> bool:
         input_master_pw = input("Enter master password: ")
         if verify_master_pw(input_master_pw):
             print("Correct password! Access granted.")
+            clear_terminal(5)
             return True
         else:
             attempt_count += 1
@@ -409,13 +410,17 @@ def display_cool(text: str) -> None:
 def display_end_program() -> None:
     print("Exiting PassMan 2.0... Good bye :)")
     time.sleep(1)
-    print("Clearing terminal in 5 seconds for security's sake")
-    for i in range(5, 0, -1):
+    clear_terminal(5)
+    return
+
+
+def clear_terminal(wait_sec: int) -> None:
+    print("Clearing terminal in {sec} seconds for security's sake".format(sec=str(wait_sec)))
+    for i in range(wait_sec, 0, -1):
         print(i)
         time.sleep(1)
     print('Clearing...')
     os.system('cls||clear')
-    return
 
 
 def main():
