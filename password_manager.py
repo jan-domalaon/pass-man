@@ -16,10 +16,12 @@ from Crypto.Protocol.KDF import PBKDF2
 from datetime import datetime
 
 master_key = ''
+old_master_key = ''
 DEFAULT_MASTER_FP: str = 'master.txt'
 DEFAULT_CREDENTIALS_FOLDER_FP: str = 'credentials\\'
 DEFAULT_BACKUP_FOLDER_FP: str = 'backup\\'
 DEFAULT_MAX_ATTEMPT: int = 5
+DEFAULT_OLD_MASTER_FP: str = 'master_old.txt'
 credentials_folder_fp: str = ''
 
 def create_master_pw(master_fp: str=DEFAULT_MASTER_FP):
@@ -73,7 +75,6 @@ def challenge_master_pw(master_fp: str=DEFAULT_MASTER_FP) -> bool:
             print_wrong_attempt_prompt(attempt_count)
     display_end_program()
     return False
-    
 
 
 def print_wrong_attempt_prompt(attempt_count: int) -> None:
@@ -179,7 +180,7 @@ def input_credentials():
     return credentials
 
 
-def create_output_json(entries):
+def create_output_json(entries: list):
     # HELPER FUNCTION to create the output json
     # Takes in entries to create credentials json
     # Value meant to be populated with entry_json
@@ -187,6 +188,32 @@ def create_output_json(entries):
     for entry in entries:
         output_json[entry] = ""
     return output_json
+
+
+def encrypt_pw_to_json(credentials_dict: dict, creds_json_fp: str) -> None:
+    # Encrypt credentials to a json file with a given credentials dict
+
+    # Output_json is just a dictionary with all the keys of the credentials_dict, but with no value. A template
+    output_json: dict = create_output_json(entries=credentials_dict.keys())
+
+    f = open(creds_json_fp, 'w')
+    for entry_name in credentials_dict.keys():
+        output_json
+        # Use entered password as key for encrypting
+        cipher = AES.new(master_key, AES.MODE_EAX)
+        ct_bytes, tag = cipher.encrypt_and_digest(credentials_dict[entry_name].encode())
+
+        # Write to file. There should be the length of entries * 3
+        # Times 3 because of ciphertext, tag, and nonce
+        json_k = [ 'nonce', 'ciphertext', 'tag' ]
+        json_v = []
+        for x in [cipher.nonce, ct_bytes, tag]:
+            json_v.append(b64encode(x).decode('utf-8'))
+        entry_json = json.dumps(dict(zip(json_k, json_v)))
+        output_json[entry_name] = entry_json
+    json.dump(output_json, f)
+    f.close()
+    print("New login credentials for " + creds_json_fp + " added!")
 
 
 def retrieve_pw():
@@ -199,8 +226,19 @@ def print_pw(app_name: str, credentials_folder_fp: str = DEFAULT_CREDENTIALS_FOL
     # HELPER FUNCTION to retrieve password from credential files
     # Check if app name exists. If not, then cancel operation
     credentials_fp: str = credentials_folder_fp + app_name + '.json'
+    credentials_dict: dict = decrypt_credentials_file(credentials_fp, app_name, master_key)
+
+    # Catch if dictionary is empty
+    if credentials_dict is not None:
+        for entry in credentials_dict.keys():
+            print(entry, ': ', credentials_dict[entry])
+
+
+def decrypt_credentials_file(credentials_fp: str, app_name: str, decrypt_master_key) -> dict:
+    # Decrypts the credentials file. Return as a dict
+    credentials_dict = {}
     if path.exists(credentials_fp):
-        print(app_name + " credentials found!")
+        print(credentials_fp + " found!")
 
         # Load app name as dictionary
         with open(credentials_fp) as f:
@@ -220,14 +258,17 @@ def print_pw(app_name: str, credentials_folder_fp: str = DEFAULT_CREDENTIALS_FOL
                     json_v[k] = b64decode(entry_json[k])
 
                 # Finally decipher with the given nonce, ciphertext, and tag
-                cipher = AES.new(master_key, AES.MODE_EAX, nonce=json_v['nonce'])
+                cipher = AES.new(decrypt_master_key, AES.MODE_EAX, nonce=json_v['nonce'])
                 plaintext = cipher.decrypt_and_verify(json_v['ciphertext'], json_v['tag'])
-                print(entry + ": ", plaintext.decode())
+                credentials_dict[entry] = plaintext.decode()
         except (ValueError, KeyError):
             output_error_in_credential_file()
+            return None
         f.close()
     else: 
         output_file_does_not_exist(app_name)
+        return None
+    return credentials_dict
 
 
 def output_error_in_credential_file():
@@ -260,6 +301,7 @@ def show_all_pws(credentials_fp: str=DEFAULT_CREDENTIALS_FOLDER_FP):
     json_file_names = get_json_filenames(creds_filenames)
 
     for file_name in json_file_names:
+        # App name is the file name without .json suffix
         app_name = file_name[0:-5]
         print_pw(app_name=app_name)
 
@@ -306,14 +348,20 @@ def change_master_pw(master_fp: str, credentials_fp: str, backup_fp: str) -> Non
     # Also back up the old master file
     backup_credentials_and_master(master_fp, credentials_fp, backup_fp=backup_fp)
 
-    # Delete original master password
-    delete_master_pw(master_fp)
+   
+   # Back up old master key for decrypting old creds. Delete old master key at end
+    backup_old_master_key()
 
     # Create a new master password file
+    # This will make the program use a new master key with the new master password
     create_master_pw(master_fp)
 
     # Decrypt and re-encrypt all old credentials using the new master password as key
-    re_encrypt_creds_to_new_master_pw()
+    re_encrypt_creds_to_new_master_pw(master_fp)
+
+    # Replace old master password and master key
+    delete_master_pw(DEFAULT_OLD_MASTER_FP)
+    delete_old_master_key()
 
 
 def backup_credentials_and_master(master_fp: str, credentials_fp: str, backup_fp: str) -> None:
@@ -329,10 +377,31 @@ def backup_credentials_and_master(master_fp: str, credentials_fp: str, backup_fp
         # ./backup/datetime/credentials
         copy_credentials_to_new_folder(credentials_fp, new_backup_credentials_fp)
         copy_master_to_backup_date_folder(master_fp, new_backup_fp)
+        # Store old master in current folder for now. To be used in re-encryption
+        backup_old_master(master_fp)
+
         print("Backed up credentials and master file to ", new_backup_fp, " successfully!")
         print("Copied old credential files from ", credentials_fp, ' to ', new_backup_credentials_fp)
     else:
         print(new_backup_fp, " exists already. Not overwriting directory.")
+
+
+def backup_old_master_key() -> None:
+    global old_master_key 
+    old_master_key = master_key
+
+
+def delete_old_master_key() -> None:
+    global old_master_key
+
+
+def backup_old_master(master_fp: str, old_master_fp: str=DEFAULT_OLD_MASTER_FP) -> None:
+    if path.exists(old_master_fp):
+        # Delete old master if it exists
+        print("Duplicate old master file found. Deleting...")
+        delete_master_pw(old_master_fp)
+    shutil.copy(master_fp, old_master_fp)
+    print("Successfully backed up old master file for re-encryption. Saved as ", old_master_fp)
 
 
 def copy_credentials_to_new_folder(credentials_fp: str, new_folder_fp: str) -> None:
@@ -362,8 +431,21 @@ def delete_master_pw(master_fp: str=DEFAULT_MASTER_FP):
         print("Error: ", master_fp, " could not be deleted.")
 
 
-def re_encrypt_creds_to_new_master_pw() -> None:
-    pass
+def re_encrypt_creds_to_new_master_pw(new_master_fp: str=DEFAULT_MASTER_FP, old_master_fp: str=DEFAULT_OLD_MASTER_FP, credentials_folder_fp: str=DEFAULT_CREDENTIALS_FOLDER_FP) -> None:
+    # For every credential in credentials, decrypt with old_master_fp
+    for filename in get_files_in_folder(credentials_folder_fp):
+        # Continue only if .json
+        if filename[-5:] == '.json':
+            credentials_file_fp = credentials_folder_fp + filename
+            app_name = filename[0:-5]
+
+            # Decrypt old credential files using old master key
+            # Store in program temporarily
+            credentials_dict = decrypt_credentials_file(credentials_file_fp, app_name, old_master_key)
+
+            # Re-encrypting the new json should overwrite the old credential files
+            # Encrypt into new files with same name
+            encrypt_pw_to_json(credentials_dict, credentials_file_fp)
 
 
 def display_banner(print_cool: bool=True) -> None:
